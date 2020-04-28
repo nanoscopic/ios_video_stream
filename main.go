@@ -1,7 +1,6 @@
 package main
 
 import (
-    "encoding/json"
     "fmt"
     "os"
     "os/signal"
@@ -13,11 +12,11 @@ import (
 )
 
 func main() {
-    usage := fmt.Sprintf(`Q.uickTime V.ideo H.ack (qvh) %s
+    usage := fmt.Sprintf(`IOS Video Stream (ios_video_stream) %s
 
 Usage:
-  qvh devices [-v]
-  qvh stream <zmqpush> <zmqpull> [-v] [--udid=<udid>]`)
+  ios_video_stream devices [-v]
+  ios_video_stream <zmqpush> <zmqpull> [-v] [--udid=<udid>]`)
     
     arguments, _ := docopt.ParseDoc(usage)
     log.SetFormatter(&log.JSONFormatter{})
@@ -29,103 +28,67 @@ Usage:
     }
 
     devicesCommand, _ := arguments.Bool("devices")
-    if devicesCommand {
-        devices()
-        return
-    }
+    if devicesCommand { devices(); return }
 
     udid, _ := arguments.String("--udid")
-    log.Debugf("requested udid:'%s'", udid)
 
     streamCommand, _ := arguments.Bool("stream")
     if streamCommand {
         zmqPushSpec, err := arguments.String("<zmqpush>")
         if err != nil {
-            printErrJSON(err, "Missing <zmqpush> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7878'")
+            log.Errorf("Missing <zmqpush> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7878' - %s", err)
             return
         }
-        zmqPullSpec, err := arguments.String("<wzmqpull>")
+        zmqPullSpec, err := arguments.String("<zmqpull>")
         if err != nil {
-            printErrJSON(err, "Missing <zmqpull> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7878'")
+            log.Errorf("Missing <zmqpull> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7879' - %s", err)
             return
         }
-        stream(zmqPushSpec, zmqPullSpec, udid)
+        stream( zmqPushSpec, zmqPullSpec, udid )
     }
 }
 
-// Just dump a list of what was discovered to the console
 func devices() {
     deviceList, err := screencapture.FindIosDevices()
-    if err != nil {
-        printErrJSON(err, "Error finding iOS Devices")
+    if err != nil { log.Errorf("Error finding iOS Devices - %s",err) }
+    
+    for _,device := range deviceList {
+        fmt.Printf( "UDID:%s, Name:%s, VID=%s, PID=%s\n", device.SerialNumber, device.ProductName, device.VID, device.PID )
     }
-    log.Debugf("Found (%d) iOS Devices with UsbMux Endpoint", len(deviceList))
-
-    if err != nil {
-        printErrJSON(err, "Error finding iOS Devices")
-    }
-    output := screencapture.PrintDeviceDetails(deviceList)
-
-    printJSON(map[string]interface{}{"devices": output})
 }
 
 func stream( zmqPushSpec string, zmqPullSpec string, udid string) {
-    log.Debugf("Writing video output to:'%s'. Receiving jpeg from: %s", zmqPushSpec, zmqPullSpec)
-
-    //writer := coremedia.NewAVFileWriter(bufio.NewWriter(h264File), bufio.NewWriter(wavFile))
     writer := coremedia.NewZMQWriter( zmqPushSpec )
-
     startWithConsumer( writer, udid )
 }
 
 func startWithConsumer( consumer screencapture.CmSampleBufConsumer, udid string )  {
     device, err := screencapture.FindIosDevice(udid)
-    if err != nil {
-        printErrJSON(err, "no device found to activate")
-        return
-    }
+    if err != nil { log.Errorf("no device found to activate - %s",err); return }
 
     device, err = screencapture.EnableQTConfig(device)
-    if err != nil {
-        printErrJSON(err, "Error enabling QT config")
-        return
-    }
+    if err != nil { log.Errorf("Error enabling QT config - %s",err); return }
 
     adapter := screencapture.UsbAdapter{}
-    stopSignal := make(chan interface{})
-    waitForSigInt(stopSignal)
+    stopChannel := make( chan bool )
+    waitForSigInt( stopChannel )
 
-    mp := screencapture.NewMessageProcessor(&adapter, stopSignal, consumer)
+    mp := screencapture.NewMessageProcessor(&adapter, stopChannel, consumer)
 
-    err = adapter.StartReading(device, &mp, stopSignal)
+    err = adapter.StartReading( device, &mp, stopChannel )
     consumer.Stop()
     if err != nil {
-        printErrJSON(err, "failed connecting to usb")
+        log.Errorf("failed connecting to usb - %s",err)
     }
 }
 
-func waitForSigInt(stopSignalChannel chan interface{}) {
+func waitForSigInt( stopChannel chan bool ) {
     c := make(chan os.Signal, 1)
     signal.Notify(c, os.Interrupt)
     go func() {
         for sig := range c {
             log.Debugf("Signal received: %s", sig)
-            var stopSignal interface{}
-            stopSignalChannel <- stopSignal
+            stopChannel <- true
         }
     }()
-}
-
-func printErrJSON(err error, msg string) {
-    printJSON(map[string]interface{}{
-        "original_error": err.Error(),
-        "error_message":    msg,
-    })
-}
-func printJSON(output map[string]interface{}) {
-    text, err := json.Marshal(output)
-    if err != nil {
-        log.Fatalf("Broken json serialization, error: %s", err)
-    }
-    println(string(text))
 }
