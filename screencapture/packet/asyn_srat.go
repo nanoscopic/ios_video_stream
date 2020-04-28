@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/coremedia"
+	"github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
 )
 
 // AsynSratPacket is probably related to AVPlayer.SetRate somehow. I dont know exactly what everything means here

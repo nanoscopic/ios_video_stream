@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/common"
+	"github.com/nanoscopic/ios_video_stream/screencapture/common"
 	"github.com/sirupsen/logrus"
 )
 

@@ -5,7 +5,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/packet"
+	"github.com/nanoscopic/ios_video_stream/screencapture/packet"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -2,7 +2,7 @@ package screencapture_test
 
 import (
 	"encoding/binary"
-	"github.com/danielpaulus/quicktime_video_hack/screencapture"
+	"github.com/nanoscopic/ios_video_stream/screencapture"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

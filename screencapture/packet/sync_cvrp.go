@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/coremedia"
+	"github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
 )
 
 //SyncCvrpPacket contains all info from a CVRP packet sent by the device

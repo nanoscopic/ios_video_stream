@@ -3,7 +3,7 @@ package packet
 import (
 	"fmt"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/coremedia"
+	"github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
 )
 
 //AsynSprpPacket seems to be a set property packet sent by the device.

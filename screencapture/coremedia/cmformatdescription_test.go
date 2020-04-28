@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/coremedia"
+	"github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
 	"github.com/stretchr/testify/assert"
 )
 
