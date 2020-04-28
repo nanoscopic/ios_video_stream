@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/coremedia"
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/packet"
+	"github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
+	"github.com/nanoscopic/ios_video_stream/screencapture/packet"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/danielpaulus/quicktime_video_hack/screencapture/common"
+	"github.com/nanoscopic/ios_video_stream/screencapture/common"
 )
 
 //CMItemCount is a simple typedef to int to be a bit closer to MacOS/iOS
