@@ -122,15 +122,6 @@ func mapToIosDevice(devices []*gousb.Device) ([]IosDevice, error) {
 	return iosDevices, nil
 }
 
-//PrintDeviceDetails returns a list of device details ready to be JSON converted.
-func PrintDeviceDetails(devices []IosDevice) []map[string]interface{} {
-	result := make([]map[string]interface{}, len(devices))
-	for k, device := range devices {
-		result[k] = device.DetailsMap()
-	}
-	return result
-}
-
 func isValidIosDevice(desc *gousb.DeviceDesc) bool {
 	muxConfigIndex, _ := findConfigurations(desc)
 	if muxConfigIndex == -1 {
@@ -189,16 +180,6 @@ func findInterfaceForSubclass(confDesc gousb.ConfigDesc, subClass gousb.Class) (
 //IsActivated returns a boolean that is true when this device was enabled for screen mirroring and false otherwise.
 func (d *IosDevice) IsActivated() bool {
 	return d.QTConfigIndex != -1
-}
-
-//DetailsMap contains all the info for a device in a map ready to be JSON encoded
-func (d *IosDevice) DetailsMap() map[string]interface{} {
-	return map[string]interface{}{
-		"deviceName":               d.ProductName,
-		"usb_device_info":          d.UsbInfo,
-		"udid":                     d.SerialNumber,
-		"screen_mirroring_enabled": d.IsActivated(),
-	}
 }
 
 func (d *IosDevice) String() string {

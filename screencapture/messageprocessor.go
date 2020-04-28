@@ -14,7 +14,7 @@ import (
 //extracted CMSampleBuffers to a consumer
 type MessageProcessor struct {
 	usbWriter                                UsbWriter
-	stopSignal                               chan interface{}
+	stopChannel                              chan bool
 	clock                                    coremedia.CMClock
 	localAudioClock                          coremedia.CMClock
 	needClockRef                             packet.CFTypeID
@@ -34,14 +34,14 @@ type MessageProcessor struct {
 
 //NewMessageProcessor creates a new MessageProcessor that will write answers to the given UsbWriter,
 // forward extracted CMSampleBuffers to the CMSampleBufConsumer and wait for the stopSignal.
-func NewMessageProcessor(usbWriter UsbWriter, stopSignal chan interface{}, consumer CmSampleBufConsumer) MessageProcessor {
+func NewMessageProcessor(usbWriter UsbWriter, stopChannel chan bool, consumer CmSampleBufConsumer) MessageProcessor {
 	clockBuilder := func(ID uint64) coremedia.CMClock { return coremedia.NewCMClockWithHostTime(ID) }
-	return NewMessageProcessorWithClockBuilder(usbWriter, stopSignal, consumer, clockBuilder)
+	return NewMessageProcessorWithClockBuilder(usbWriter, stopChannel, consumer, clockBuilder)
 }
 
 //NewMessageProcessorWithClockBuilder lets you inject a clockBuilder for the sake of testability.
-func NewMessageProcessorWithClockBuilder(usbWriter UsbWriter, stopSignal chan interface{}, consumer CmSampleBufConsumer, clockBuilder func(uint64) coremedia.CMClock) MessageProcessor {
-	var mp = MessageProcessor{usbWriter: usbWriter, stopSignal: stopSignal, cmSampleBufConsumer: consumer, clockBuilder: clockBuilder, releaseWaiter: make(chan interface{}), firstAudioTimeTaken: false}
+func NewMessageProcessorWithClockBuilder(usbWriter UsbWriter, stopChannel chan bool, consumer CmSampleBufConsumer, clockBuilder func(uint64) coremedia.CMClock) MessageProcessor {
+	var mp = MessageProcessor{usbWriter: usbWriter, stopChannel: stopChannel, cmSampleBufConsumer: consumer, clockBuilder: clockBuilder, releaseWaiter: make(chan interface{}), firstAudioTimeTaken: false}
 	return mp
 }
 
@@ -278,6 +278,5 @@ func (mp *MessageProcessor) CloseSession() {
 }
 
 func (mp MessageProcessor) stop() {
-	var stop interface{}
-	mp.stopSignal <- stop
+	mp.stopChannel <- true
 }
