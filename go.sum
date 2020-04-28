@@ -26,6 +26,8 @@ github.com/marten-seemann/qtls v0.2.3/go.mod h1:xzjG7avBwGGbdZ8dTGxlBnLArsVKLvwm
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
+github.com/pebbe/zmq4 v1.2.0 h1:SMCj4kvOpBvM97uWlv7QSlwjpCpYOXdiK8piMjGmzOs=
+github.com/pebbe/zmq4 v1.2.0/go.mod h1:7N4y5R18zBiu3l0vajMUWQgZyjv464prE8RCyBcmnZM=
 github.com/pion/datachannel v1.4.12/go.mod h1:Ulrx2j4r8c0Za5ltWFv/hZvSpc3ZpvOvcz46tvnt+PY=
 github.com/pion/dtls v1.5.2/go.mod h1:v4ULmyyV65geAZQBBckCjgMhmngTqz7HQVsQVYnfkGo=
 github.com/pion/ice v0.7.1/go.mod h1:fPnWLWO3B83fJmO6Sci5Mv3ypN4Vd956Py4JlbJfVwU=
