@@ -24,7 +24,7 @@ func (usa UsbAdapter) WriteDataToUsb(bytes []byte) {
 //Every received data is added to a frameextractor and when it is complete, sent to the UsbDataReceiver.
 func (usa *UsbAdapter) StartReading(device IosDevice, receiver UsbDataReceiver, stopChannel chan bool) error {
 	ctx, cleanUp := createContext()
-	defer cleanUp()
+	//defer cleanUp()
 
 	usbDevice, err := ctx.OpenDeviceWithVIDPID(device.VID, device.PID)
 	if err != nil {
@@ -96,7 +96,6 @@ func (usa *UsbAdapter) StartReading(device IosDevice, receiver UsbDataReceiver, 
 	log.Debug("Endpoint claimed")
 	log.Infof("Device '%s' USB connection ready", device.SerialNumber)
 	go func() {
-
 		frameExtractor := NewLengthFieldBasedFrameExtractor()
 		for {
 			buffer := make([]byte, 65536)
@@ -113,20 +112,24 @@ func (usa *UsbAdapter) StartReading(device IosDevice, receiver UsbDataReceiver, 
 		}
 	}()
 
-	<- stopChannel
-	receiver.CloseSession()
-	log.Info("Closing usb stream")
-
-	err = stream.Close()
-	if err != nil {
-		log.Error("Error closing stream", err)
-	}
-	log.Info("Closing usb interface")
-	iface.Close()
-
-	sendQTDisableConfigControlRequest(usbDevice)
-
-	return nil
+	go func() {
+      <- stopChannel
+      receiver.CloseSession()
+      log.Info("Closing usb stream")
+    
+      err = stream.Close()
+      if err != nil {
+        log.Error("Error closing stream", err)
+      }
+      log.Info("Closing usb interface")
+      iface.Close()
+    
+      sendQTDisableConfigControlRequest(usbDevice)
+      
+      cleanUp()
+  }()
+  
+  return nil
 }
 
 func grabOutBulk(setting gousb.InterfaceSetting) (int, error) {

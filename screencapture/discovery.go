@@ -51,6 +51,7 @@ func createContext() (*gousb.Context, func()) {
 	ctx := gousb.NewContext()
 	log.Debugf("Opened usbcontext:%v", ctx)
 	cleanUp := func() {
+	  log.Info("Closing usb context")
 		err := ctx.Close()
 		if err != nil {
 			log.Fatalf("Error closing usb context: %v", ctx)
