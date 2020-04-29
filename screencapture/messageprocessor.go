@@ -278,5 +278,5 @@ func (mp *MessageProcessor) CloseSession() {
 }
 
 func (mp MessageProcessor) stop() {
-	mp.stopChannel <- true
+	  mp.stopChannel <- true
 }
