@@ -14,18 +14,13 @@ import (
     "sync"
     "time"
     
-    //"github.com/tmobile/stf_ios_mirrorfeed/mirrorfeed/mods/mjpeg"
     "github.com/gorilla/websocket"
     
     //zmq "github.com/pebbe/zmq4"
     "go.nanomsg.org/mangos/v3"
-	  //"go.nanomsg.org/mangos/v3/protocol/pull"
-	  //"go.nanomsg.org/mangos/v3/protocol/push"
 	  // register transports
 	  _ "go.nanomsg.org/mangos/v3/transport/all"
 )
-
-var listen_addr = "localhost:8000"
 
 func callback( r *http.Request ) bool {
     return true
@@ -71,8 +66,7 @@ type Stats struct {
 }
 
 //func startJpegServer( zSock *zmq.Socket, stopChannel chan bool ) {
-func startJpegServer( inSock mangos.Socket, stopChannel chan bool, tunName string ) {
-    mirrorPort := "8007"
+func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort string, tunName string ) {
     var err error
     
     ifaces, err := net.Interfaces()
@@ -81,8 +75,10 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, tunName strin
         os.Exit( 1 )
     }
     
+    var listen_addr string
     if tunName == "none" {
         fmt.Printf("No tunnel specified; listening on all interfaces\n")
+        listen_addr = ":" + mirrorPort
     } else {
         foundInterface := false
         for _, iface := range ifaces {
@@ -132,14 +128,14 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, tunName strin
     go func() {
         imgnum := 1
         
-        //LOOP:
+        LOOP:
         for {
-            /*select {
+            select {
                 case <- stopChannel:
                     fmt.Printf("Server channel got stop message\n")
                     break LOOP
                 default:
-            }*/
+            }
             
             //jpegStr, _ := inSock.Recv( 0 )
             jpegStr, err := inSock.Recv()
@@ -172,7 +168,7 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, tunName strin
         }
     }()
     
-    startServer( imgCh, dummyCh, imgs, &lock, &statLock, &stats, &dummyRunning )
+    startServer( imgCh, dummyCh, imgs, &lock, &statLock, &stats, &dummyRunning, listen_addr )
 }
 
 func dummyReceiver(imgCh <-chan ImgMsg,dummyCh <-chan DummyMsg,imgs map[int]ImgType, lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool ) {
@@ -272,7 +268,7 @@ func writer(ws *websocket.Conn,imgCh <-chan ImgMsg,writerCh <-chan WriterMsg,img
     statLock.Unlock()
 }
 
-func startServer( imgCh <-chan ImgMsg, dummyCh chan<- DummyMsg, imgs map[int]ImgType, lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool ) (*http.Server) {
+func startServer( imgCh <-chan ImgMsg, dummyCh chan<- DummyMsg, imgs map[int]ImgType, lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool, listen_addr string ) (*http.Server) {
     fmt.Printf("Listening on %s\n", listen_addr )
     
     echoClosure := func( w http.ResponseWriter, r *http.Request ) {

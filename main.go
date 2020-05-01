@@ -1,6 +1,7 @@
 package main
 
 import (
+    "flag"
     "fmt"
     "os"
     "os/signal"
@@ -8,8 +9,6 @@ import (
 
     "github.com/nanoscopic/ios_video_stream/screencapture"
     "github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
-    "github.com/docopt/docopt-go"
-    //zmq "github.com/pebbe/zmq4"
     
     "go.nanomsg.org/mangos/v3"
 	  "go.nanomsg.org/mangos/v3/protocol/pull"
@@ -21,39 +20,29 @@ import (
 )
 
 func main() {
-    usage := fmt.Sprintf(`IOS Video Stream (ios_video_stream) %s
-
-Usage:
-  ios_video_stream devices [-v]
-  ios_video_stream stream <pushspec> <pullspec> [-v] [--udid=<udid>]`)
+    var udid       = flag.String( "udid"     , ""                    , "Device UDID" )
+    var devicesCmd = flag.Bool(   "devices"  , false                 , "List devices then exit" )
+    var streamCmd  = flag.Bool(   "stream"   , false                 , "Stream video" )
+    var pushSpec   = flag.String( "pushSpec" , "tcp://127.0.0.1:7878", "NanoMsg spec to push h264 nalus to" )
+    var pullSpec   = flag.String( "pullSpec" , "tcp://127.0.0.1:7979", "NanoMsg spec to pull jpeg frames from" )
+    var iface      = flag.String( "interface", "none"                , "Network interface to listen on" )
+    var port       = flag.String( "port"     , "8000"                , "Network port to listen on" )
+    var verbose    = flag.Bool(   "v"        , false                 , "Verbose Debugging" )
+    flag.Parse()
     
-    arguments, _ := docopt.ParseDoc(usage)
     log.SetFormatter(&log.JSONFormatter{})
 
-    verboseLoggingEnabled, _ := arguments.Bool("-v")
-    if verboseLoggingEnabled {
+    if *verbose {
         log.Info("Set Debug mode")
         log.SetLevel(log.DebugLevel)
     }
 
-    devicesCommand, _ := arguments.Bool("devices")
-    if devicesCommand { devices(); return }
-
-    udid, _ := arguments.String("--udid")
-
-    streamCommand, _ := arguments.Bool("stream")
-    if streamCommand {
-        pushSpec, err := arguments.String("<pushspec>")
-        if err != nil {
-            log.Errorf("Missing <pushspec> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7878' - %s", err)
-            return
-        }
-        pullSpec, err := arguments.String("<pullspec>")
-        if err != nil {
-            log.Errorf("Missing <pullspec> parameter. Please specify a valid spec like 'tcp://127.0.0.1:7879' - %s", err)
-            return
-        }
-        stream( pushSpec, pullSpec, udid )
+    if *devicesCmd {
+        devices(); return
+    } else if *streamCmd {
+        stream( *pushSpec, *pullSpec, *udid, *iface, *port )
+    } else {
+        flag.Usage()
     }
 }
 
@@ -66,17 +55,7 @@ func devices() {
     }
 }
 
-func stream( pushSpec string, pullSpec string, udid string ) {
-    /*pushSock, _ := zmq.NewSocket(zmq.PUSH)
-    err := pushSock.Connect( zmqPushSpec )
-    if err != nil {
-        log.WithFields( log.Fields{
-            "type": "err_zmq_connect",
-            "zmq_spec": zmqPushSpec,
-            "err": err,
-        } ).Fatal("ZMQ connect error")
-    }*/
-    
+func stream( pushSpec string, pullSpec string, udid string, tunName string, port string ) {
     var pushSock mangos.Socket
     var err error
     if pushSock, err = push.NewSocket(); err != nil {
@@ -94,21 +73,6 @@ func stream( pushSpec string, pullSpec string, udid string ) {
         } ).Fatal("Socket connect error")
     }
     
-    // Garbage message with delay to avoid late joiner ZeroMQ madness
-    //msg := "dummy"
-    //pushSock.Send(msg,0)
-    //pushSock.Send( []byte (msg) )
-    //time.Sleep( time.Millisecond * 300 )
-    
-    /*pullSock, _ := zmq.NewSocket(zmq.PULL)
-    err = pullSock.Bind( zmqPullSpec )
-    if err != nil {
-        log.WithFields( log.Fields{
-            "type": "err_zmq_bind",
-            "zmq_spec": zmqPullSpec,
-            "err": err,
-        } ).Fatal("ZMQ bind error")
-    }*/
     var pullSock mangos.Socket
     if pullSock, err = pull.NewSocket(); err != nil {
         log.WithFields( log.Fields{
@@ -131,7 +95,7 @@ func stream( pushSpec string, pullSpec string, udid string ) {
     stopChannel3 := make( chan bool )
     waitForSigInt( stopChannel, stopChannel2, stopChannel3 )
     
-    startJpegServer( pullSock, stopChannel2, "none" )
+    startJpegServer( pullSock, stopChannel2, port, tunName )
     
     writer := coremedia.NewZMQWriter( pushSock )
     success := startWithConsumer( writer, udid, stopChannel )
