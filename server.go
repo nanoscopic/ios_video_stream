@@ -128,14 +128,14 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
     go func() {
         imgnum := 1
         
-        LOOP:
+        //LOOP:
         for {
-            select {
+            /*select {
                 case <- stopChannel:
                     fmt.Printf("Server channel got stop message\n")
                     break LOOP
                 default:
-            }
+            }*/
             
             //jpegStr, _ := inSock.Recv( 0 )
             jpegStr, err := inSock.Recv()

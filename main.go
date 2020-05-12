@@ -56,7 +56,38 @@ func devices() {
 }
 
 func stream( pushSpec string, pullSpec string, udid string, tunName string, port string ) {
-    var pushSock mangos.Socket
+    pushSock, pullSock := setup_nanomsg_sockets( pushSpec, pullSpec )    
+    
+    stopChannel := make( chan bool )
+    stopChannel2 := make( chan bool )
+    stopChannel3 := make( chan bool )
+    waitForSigInt( stopChannel, stopChannel2, stopChannel3 )
+    
+    startJpegServer( pullSock, stopChannel2, port, tunName )
+    
+    writer := coremedia.NewZMQWriter( pushSock )
+    
+    attempt := 1
+    for {
+        success := startWithConsumer( writer, udid, stopChannel )
+        if success {
+            break
+        }
+        fmt.Printf("Attempt %i to start streaming\n", attempt)
+        if attempt >= 4 {
+            log.WithFields( log.Fields{
+                "type": "stream_start_failed",
+            } ).Fatal("Socket new error")
+        }
+        attempt++
+        time.Sleep( time.Second * 1 )
+    }
+    
+    <- stopChannel3
+    writer.Stop()
+}
+
+func setup_nanomsg_sockets( pushSpec string, pullSpec string ) ( pushSock mangos.Socket, pullSock mangos.Socket ) {
     var err error
     if pushSock, err = push.NewSocket(); err != nil {
         log.WithFields( log.Fields{
@@ -73,7 +104,6 @@ func stream( pushSpec string, pullSpec string, udid string, tunName string, port
         } ).Fatal("Socket connect error")
     }
     
-    var pullSock mangos.Socket
     if pullSock, err = pull.NewSocket(); err != nil {
         log.WithFields( log.Fields{
             "type": "err_socket_new",
@@ -89,21 +119,7 @@ func stream( pushSpec string, pullSpec string, udid string, tunName string, port
             "err": err,
         } ).Fatal("Socket bind error")
     }
-    
-    stopChannel := make( chan bool )
-    stopChannel2 := make( chan bool )
-    stopChannel3 := make( chan bool )
-    waitForSigInt( stopChannel, stopChannel2, stopChannel3 )
-    
-    startJpegServer( pullSock, stopChannel2, port, tunName )
-    
-    writer := coremedia.NewZMQWriter( pushSock )
-    success := startWithConsumer( writer, udid, stopChannel )
-    
-    if success == true {    
-        <- stopChannel3
-        writer.Stop()
-    }
+    return pushSock, pullSock
 }
 
 func startWithConsumer( consumer screencapture.CmSampleBufConsumer, udid string, stopChannel chan bool )  ( bool ) {

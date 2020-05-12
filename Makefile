@@ -1,4 +1,4 @@
-TARGET = ../../../bin/ios_video_stream
+TARGET = ios_video_stream
 
 all: $(TARGET)
 
