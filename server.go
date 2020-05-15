@@ -1,10 +1,10 @@
 package main
 
 import (
-    //"bytes"
+    "bytes"
     "fmt"
     "html/template"
-    //"image"
+    "image"
     _ "image/jpeg"
     //"io"
     "log"
@@ -65,7 +65,7 @@ type Stats struct {
     waitCnt int
 }
 
-func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort string, tunName string ) {
+func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort string, tunName string, secure bool, cert string, key string ) {
     var err error
     
     ifaces, err := net.Interfaces()
@@ -123,6 +123,8 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
     
     startDummyReceiver( imgCh, dummyCh, &lock, &statLock, &stats, &dummyRunning )
     
+    sentSize := false
+    
     go func() {
         imgnum := 1
         
@@ -141,9 +143,13 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
                 continue
             }
             
-            //reader := bytes.NewReader( msg.Body )
-            //config, _, _ := image.DecodeConfig( reader ) // ( config, format, error )
-            //msg := fmt.Sprintf("Width: %d, Height: %d, Size: %d\n", config.Width, config.Height, len( jpegStr ) )
+            tmsg := "none"
+            if !sentSize {
+                reader := bytes.NewReader( msg.Body )
+                config, _, _ := image.DecodeConfig( reader ) // ( config, format, error )
+                tmsg = fmt.Sprintf("Width: %d, Height: %d, Size: %d\n", config.Width, config.Height, len( msg.Body ) )
+                sentSize = true
+            }
             
             discard := false
             lock.Lock()
@@ -153,7 +159,7 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
                 imgMsg := ImgMsg{}
                 imgMsg.imgNum = imgnum
                 imgMsg.data = []byte ( msg.Body )
-                imgMsg.msg = "none"
+                imgMsg.msg = tmsg
                 imgCh <- imgMsg
                 msg.Free()
             } else {
@@ -168,7 +174,7 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
         }
     }()
     
-    startServer( imgCh, dummyCh, &lock, &statLock, &stats, &dummyRunning, listen_addr )
+    startServer( imgCh, dummyCh, &lock, &statLock, &stats, &dummyRunning, listen_addr, secure, cert, key )
 }
 
 func startDummyReceiver(imgCh <-chan ImgMsg,dummyCh <-chan DummyMsg,lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool ) {
@@ -229,8 +235,10 @@ func startWriter(ws *websocket.Conn,imgCh <-chan ImgMsg,writerCh <-chan WriterMs
                     msg := []byte(imgMsg.msg)
                     imgBytes := imgMsg.data
                     
+                    lock.Lock()
                     ws.WriteMessage(websocket.TextMessage, msg)
                     ws.WriteMessage(websocket.BinaryMessage, imgBytes )
+                    lock.Unlock()
                 case controlMsg := <- writerCh:
                     if controlMsg.msg == WriterStop {
                         running = false
@@ -246,7 +254,7 @@ func startWriter(ws *websocket.Conn,imgCh <-chan ImgMsg,writerCh <-chan WriterMs
     }()
 }
 
-func startServer( imgCh <-chan ImgMsg, dummyCh chan DummyMsg, lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool, listen_addr string ) (*http.Server) {
+func startServer( imgCh <-chan ImgMsg, dummyCh chan DummyMsg, lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool, listen_addr string, secure bool, cert string, key string ) (*http.Server) {
     fmt.Printf("Listening on %s\n", listen_addr )
     
     echoClosure := func( w http.ResponseWriter, r *http.Request ) {
@@ -255,14 +263,21 @@ func startServer( imgCh <-chan ImgMsg, dummyCh chan DummyMsg, lock *sync.RWMutex
     statsClosure := func( w http.ResponseWriter, r *http.Request ) {
         handleStats( w, r, statLock, stats )
     }
+    rootClosure := func( w http.ResponseWriter, r *http.Request ) {
+        handleRoot( w, r, secure )
+    }
     
     server := &http.Server{ Addr: listen_addr }
     http.HandleFunc( "/echo", echoClosure )
     http.HandleFunc( "/echo/", echoClosure )
-    http.HandleFunc( "/", handleRoot )
+    http.HandleFunc( "/", rootClosure )
     http.HandleFunc( "/stats", statsClosure )
     go func() {
-        server.ListenAndServe()
+        if secure {
+            server.ListenAndServeTLS( cert, key );
+        } else {
+            server.ListenAndServe()
+        }
     }()
     return server
 }
@@ -289,7 +304,7 @@ func handleStats( w http.ResponseWriter, r *http.Request, statLock *sync.RWMutex
     fmt.Fprintf( w, "Received: %d<br>\nDumped: %d<br>\nDummy Active: %s<br>\nSocket Connected: %s<br>\nWait Count: %d<br>\n", recv, dumped, dummyStr, socketStr, waitCnt )
 }
 
-func handleEcho( w http.ResponseWriter, r *http.Request,imgCh <-chan ImgMsg,dummyCh chan DummyMsg,lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool) {
+func handleEcho( w http.ResponseWriter, r *http.Request,imgCh <-chan ImgMsg,dummyCh chan DummyMsg,lock *sync.RWMutex, statLock *sync.RWMutex, stats *Stats, dummyRunning *bool ) {
     c, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
         log.Print("Upgrade error:", err)
@@ -377,8 +392,12 @@ func welcome( c *websocket.Conn ) ( error ) {
     return c.WriteMessage( websocket.TextMessage, []byte(msg) )
 }
 
-func handleRoot( w http.ResponseWriter, r *http.Request ) {
-    rootTpl.Execute( w, "ws://"+r.Host+"/echo" )
+func handleRoot( w http.ResponseWriter, r *http.Request, secure bool ) {
+    if secure {
+        rootTpl.Execute( w, "wss://"+r.Host+"/echo" )
+    } else {
+        rootTpl.Execute( w, "ws://"+r.Host+"/echo" )
+    }
 }
 
 var rootTpl = template.Must(template.New("").Parse(`
