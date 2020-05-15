@@ -8,7 +8,7 @@ import (
     "time"
 
     "github.com/nanoscopic/ios_video_stream/screencapture"
-    "github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
+    cm "github.com/nanoscopic/ios_video_stream/screencapture/coremedia"
     
     "go.nanomsg.org/mangos/v3"
 	  "go.nanomsg.org/mangos/v3/protocol/pull"
@@ -24,7 +24,7 @@ func main() {
     var devicesCmd = flag.Bool(   "devices"  , false                 , "List devices then exit" )
     var streamCmd  = flag.Bool(   "stream"   , false                 , "Stream video" )
     var pushSpec   = flag.String( "pushSpec" , "tcp://127.0.0.1:7878", "NanoMsg spec to push h264 nalus to" )
-    var pullSpec   = flag.String( "pullSpec" , "tcp://127.0.0.1:7979", "NanoMsg spec to pull jpeg frames from" )
+    var pullSpec   = flag.String( "pullSpec" , "tcp://127.0.0.1:7879", "NanoMsg spec to pull jpeg frames from" )
     var iface      = flag.String( "interface", "none"                , "Network interface to listen on" )
     var port       = flag.String( "port"     , "8000"                , "Network port to listen on" )
     var verbose    = flag.Bool(   "v"        , false                 , "Verbose Debugging" )
@@ -65,7 +65,7 @@ func stream( pushSpec string, pullSpec string, udid string, tunName string, port
     
     startJpegServer( pullSock, stopChannel2, port, tunName )
     
-    writer := coremedia.NewZMQWriter( pushSock )
+    writer := cm.NewZMQWriter( pushSock )
     
     attempt := 1
     for {

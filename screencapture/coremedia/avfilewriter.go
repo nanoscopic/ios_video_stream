@@ -3,13 +3,12 @@ package coremedia
 import (
     "bytes"
     "encoding/binary"
-    //"fmt"
-    //zmq "github.com/pebbe/zmq4"
+    "fmt"
+    "strconv"
+    "time"
     
     "go.nanomsg.org/mangos/v3"
-	  //"go.nanomsg.org/mangos/v3/protocol/pull"
-	  //"go.nanomsg.org/mangos/v3/protocol/push"
-	  // register transports
+    // register transports
 	  _ "go.nanomsg.org/mangos/v3/transport/all"
 )
 
@@ -17,14 +16,12 @@ var startCode = []byte{00, 00, 00, 01}
 
 //ZMQWriter writes nalus into a file using 0x00000001 as a separator (h264 ANNEX B) and raw pcm audio into a wav file
 type ZMQWriter struct {
-    //socket        *zmq.Socket
     socket       mangos.Socket
     buffer       bytes.Buffer
     outFilePath  string
 }
 
 //NewZMQWriter binary writes nalus in annex b format to the given writer and audio buffers into a wav file.
-//func NewZMQWriter( socket *zmq.Socket ) ZMQWriter {
 func NewZMQWriter( socket mangos.Socket ) ZMQWriter {
     return ZMQWriter{ socket: socket }
 }
@@ -70,6 +67,13 @@ func (self ZMQWriter) writeNalus(bytes []byte) error {
 }
 
 func (self ZMQWriter) writeNalu(naluBytes []byte) error {
+    now := strconv.FormatInt( time.Now().UnixNano()/1000000, 10 )
+    json := "{\"nalBytes\":" + strconv.Itoa( len( naluBytes ) + 4 ) + ",\"time\":" + now + "}";
+    
+    var jsonLen uint16 = uint16( len( json ) )
+    binary.Write( &self.buffer, binary.LittleEndian, jsonLen )
+    self.buffer.Write( []byte( json ) )
+    
     _, err := self.buffer.Write(startCode)
     if err != nil {
         return err
@@ -78,8 +82,8 @@ func (self ZMQWriter) writeNalu(naluBytes []byte) error {
     if err != nil {
         return err
     }
-    //fmt.Printf(".\n")
-    //self.socket.Send( self.buffer.String(), 0 )
+    fmt.Printf(now + "\n")
+    
     self.socket.Send( self.buffer.Bytes() )
     self.buffer.Reset()
     return nil

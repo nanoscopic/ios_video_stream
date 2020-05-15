@@ -2,7 +2,7 @@ TARGET = ios_video_stream
 
 all: $(TARGET)
 
-$(TARGET): main.go server.go go.sum
+$(TARGET): main.go server.go go.sum screencapture/coremedia/avfilewriter.go
 	go build  -o $(TARGET) .
 
 go.sum:
