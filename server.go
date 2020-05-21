@@ -414,13 +414,51 @@ var rootTpl = template.Must(template.New("").Parse(`
   function getel( id ) {
     return document.getElementById( id );
   }
-  
+  function getCursorPosition(canvas, event) {
+    const rect = canvas.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+    console.log("x: " + x + " y: " + y)
+    return [x,y];
+  }
+  var session='';
+  var wid=0;
+  var heg=0;
+  function req( type, url, handler, body ) {
+    var xhr = new XMLHttpRequest();
+    xhr.open( type, url );
+    xhr.responseType = 'json';
+    xhr.onload = function(x) { handler(x,xhr); }
+    if( type == 'POST' && body ) xhr.send(body);
+    else xhr.send();
+  }
+  function clickAt( pos ) {
+    req( 'POST', 'http://localhost:8100/session/' + session + '/wda/tap/0', function() {}, JSON.stringify( { x: pos[0]/(1080/2)*wid, y: pos[1]/(1920/2)*heg } ) );
+  }
   window.addEventListener("load", function(evt) {
     var output = getel("output");
     var input  = getel("input");
-    var ctx    = getel("canvas").getContext("2d");
+    var canvas = getel("canvas");
+    var ctx    = canvas.getContext("2d");
     var ws;
     
+    canvas.onclick = function( event ) {
+      var pos = getCursorPosition( canvas, event );
+      if( !session ) {
+        req( 'GET', 'http://localhost:8100/status', function( a,xhr ) {
+          session = xhr.response.sessionId;
+          req( 'GET', 'http://localhost:8100/session/'+session+'/window/size', function( a,xhr ) {
+            wid = xhr.response.value.width;
+            heg = xhr.response.value.height;
+            //console.log( xhr.response );
+            clickAt( pos )
+          } );
+          
+        } );
+      } else {
+        clickAt( pos );
+      }
+    }
     getel("open").onclick = function( event ) {
       if( ws ) {
         return false;
@@ -450,10 +488,12 @@ var rootTpl = template.Must(template.New("").Parse(`
           image.src = url;
         }
         else {
-          //var text = "Response: " + event.data;
-          //var d = document.createElement("div");
-          //d.innerHTML = text;
-          //output.appendChild( d );
+          var text = "Response: " + event.data;
+          if( event.data != 'none' ) {
+            var d = document.createElement("div");
+            d.innerHTML = text;
+            output.appendChild( d );
+          }
         }
       }
       ws.onerror = function( event ) {
