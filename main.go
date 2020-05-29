@@ -25,6 +25,8 @@ func main() {
     var secure     = flag.Bool( "secure"     , false                 , "Secure HTTPS mode" )
     var cert       = flag.String( "cert"     , "https-server.crt"    , "Cert for HTTP" )
     var key        = flag.String( "key"      , "https-server.key"    , "Key for HTTPS" )
+    var coordinator= flag.String( "coordinator", "127.0.0.1:8027"    , "Coordinator control address" )
+    
     flag.Parse()
     
     log.SetFormatter(&log.JSONFormatter{})
@@ -35,20 +37,20 @@ func main() {
     }
 
     if *streamCmd {
-        stream( *pullSpec, *udid, *iface, *port, *secure, *cert, *key )
+        stream( *pullSpec, *udid, *iface, *port, *secure, *cert, *key, *coordinator )
     } else {
         flag.Usage()
     }
 }
 
-func stream( pullSpec string, udid string, tunName string, port string, secure bool, cert string, key string ) {
+func stream( pullSpec string, udid string, tunName string, port string, secure bool, cert string, key string, coordinator string ) {
     pullSock := setup_nanomsg_sockets( pullSpec )    
     
     stopChannel := make( chan bool )
     stopChannel2 := make( chan bool )
     waitForSigInt( stopChannel, stopChannel2 )
     
-    startJpegServer( pullSock, stopChannel2, port, tunName, secure, cert, key )
+    startJpegServer( pullSock, stopChannel2, port, tunName, secure, cert, key, coordinator, udid )
         
     <- stopChannel
 }

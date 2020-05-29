@@ -4,13 +4,14 @@ import (
     "bytes"
     "fmt"
     "html/template"
-    "image"
+    //"image"
     _ "image/jpeg"
     //"io"
     "log"
     "net"
     "net/http"
     "os"
+    "strings"
     "sync"
     "time"
     
@@ -19,6 +20,7 @@ import (
     "go.nanomsg.org/mangos/v3"
 	  // register transports
 	  _ "go.nanomsg.org/mangos/v3/transport/all"
+	  uj "github.com/nanoscopic/ujsonin/mod"
 )
 
 func callback( r *http.Request ) bool {
@@ -65,7 +67,7 @@ type Stats struct {
     waitCnt int
 }
 
-func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort string, tunName string, secure bool, cert string, key string ) {
+func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort string, tunName string, secure bool, cert string, key string, coordinator string, udid string ) {
     var err error
     
     ifaces, err := net.Interfaces()
@@ -144,11 +146,31 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
             }
             
             tmsg := "none"
-            if !sentSize {
-                reader := bytes.NewReader( msg.Body )
-                config, _, _ := image.DecodeConfig( reader ) // ( config, format, error )
-                tmsg = fmt.Sprintf("Width: %d, Height: %d, Size: %d\n", config.Width, config.Height, len( msg.Body ) )
-                sentSize = true
+            clickScale := 1000
+            // image is prepended by some JSON metadata
+            if msg.Body[0] == '{' {
+                endi := strings.Index( string(msg.Body), "}" )
+                fmt.Printf( "out:[" + string( msg.Body[:endi+1] ) + "]" )
+                root, left := uj.Parse( msg.Body )
+                msg.Body = left
+                
+                ow := root.Get("ow").Int()
+                //oh := root.Get("og").Int()
+                dw := root.Get("dw").Int()
+                dh := root.Get("dh").Int()
+                if ow != dw {
+                    clickScale = ow / dw * 1000
+                }
+                
+                tmsg = fmt.Sprintf("Width: %d, Height: %d, Clickscale: %d, Size: %d\n", dw, dh, clickScale, len( msg.Body ) )
+                
+                if !sentSize {
+                    //reader := bytes.NewReader( msg.Body )
+                    //config, _, _ := image.DecodeConfig( reader ) // ( config, format, error )
+                    dataReader := bytes.NewBuffer( []byte( fmt.Sprintf( `{"type":"frame1","width":%d,"height":%d,"clickScale":%d,"uuid":"%s"}`, dw, dh, clickScale, udid ) ) )
+                    http.Post("http://"+coordinator+"/frame", "application/json", dataReader  )
+                    sentSize = true
+                }
             }
             
             discard := false
@@ -158,7 +180,7 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
             if !discard {
                 imgMsg := ImgMsg{}
                 imgMsg.imgNum = imgnum
-                imgMsg.data = []byte ( msg.Body )
+                imgMsg.data = msg.Body
                 imgMsg.msg = tmsg
                 imgCh <- imgMsg
                 msg.Free()
