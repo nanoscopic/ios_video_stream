@@ -3,7 +3,7 @@ TARGET = ios_video_stream
 all: $(TARGET)
 
 $(TARGET): main.go server.go go.sum
-	go build  -o $(TARGET) .
+	go build -o $(TARGET) .
 
 go.sum:
 	go get
