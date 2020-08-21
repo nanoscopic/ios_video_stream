@@ -98,8 +98,11 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
                         fmt.Printf("Unknown type\n")
                 }
                 if iface.Name == tunName {
-                    listen_addr = ip.String() + ":" + mirrorPort
-                    foundInterface = true
+                    str := ip.String()
+					if !strings.Contains(str,":") {
+						listen_addr = str + ":" + mirrorPort
+						foundInterface = true
+					}
                 }
             }
         }
@@ -143,6 +146,8 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
             
             msg, err := inSock.RecvMsg()
 
+            fmt.Printf("Got incoming frame\n")
+            
             if err != nil && err ==  mangos.ErrRecvTimeout {
                 continue
             }
