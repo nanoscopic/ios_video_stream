@@ -1,7 +1,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 1. What is this?
-This is an altered version [Quicktime Video Hack](https://github.com/danielpaulus/quicktime_videoHack)
+This is an altered version [Quicktime Video Hack](https://github.com/danielpaulus/quicktime_video_hack)
 
 It has been altered in the following ways:
 
