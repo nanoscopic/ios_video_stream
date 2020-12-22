@@ -176,9 +176,12 @@ func startJpegServer( inSock mangos.Socket, stopChannel chan bool, mirrorPort st
                 imgMsg.data = left
                 
                 ow := root.Get("ow").Int()
-                //oh := root.Get("og").Int()
+                oh := root.Get("oh").Int()
                 dw := root.Get("dw").Int()
                 dh := root.Get("dh").Int()
+                
+                fmt.Printf("ow=%d, oh=%d, dw=%d, dh=%d\n", ow, oh, dw, dh )
+                
                 if ow != dw {
                     clickScale = ow / dw * 1000
                 }
